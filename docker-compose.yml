@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # ==============================================================
+  # FRONTEND SERVICE (REACT + VITE + NGINX REVERSE PROXY)
+  # ==============================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: attendance-frontend
+    ports:
+      - "80:80"
+      - "3000:80"
+    environment:
+      - VITE_API_URL=/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - attendance-network
+
+  # ==============================================================
+  # BACKEND SERVICE (SPRING BOOT 3.x / JAVA 21)
+  # ==============================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: attendance-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000,http://localhost:5173
+      - APP_JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      - APP_JWT_EXPIRATION_MS=86400000
+    restart: unless-stopped
+    networks:
+      - attendance-network
+
+  # ==============================================================
+  # POSTGRESQL DATABASE SERVICE (PRODUCTION PROFILE)
+  # Activate by running: docker compose --profile prod up -d
+  # ==============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: attendance-postgres
+    profiles:
+      - prod
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=attendancedb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - attendance-network
+
+networks:
+  attendance-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
